@@ -5,9 +5,9 @@
 
 
 # useful for handling different item types with a single interface
-import logging
 import ntpath
 from itemadapter import ItemAdapter
+from scrapy import Request
 from scrapy.exceptions import DropItem
 from scrapy.pipelines.images import ImagesPipeline
 from ahazonescrawler.firebase.admin import db_client, storage_client
@@ -22,19 +22,20 @@ class AhaMangaInfoDataPipeline:
     root_collection = 'aha_manga'
 
     def open_spider(self, spider):
-        logging.info('Start inserting manga info data')
+        spider.logger.info('Start inserting manga info data')
 
     def close_spider(self, spider):
-        logging.info('Stop inserting manga info data')
+        spider.logger.info('Stop inserting manga info data')
 
     def process_item(self, item, spider):
         adapter = ItemAdapter(item)
+        manga_id = adapter['manga_id']
+        if manga_id is None:
+            raise DropItem('the manga_id is none')
         # save info to firestore.
-        db_client.collection(self.root_collection)
-            .document(adapter['manga_id'])
-            .set({
+        db_client.collection(self.root_collection).document(manga_id).set({
             u'author': adapter['author_inf'],
-            u'categories': adapter['categories_inf']
+            u'categories': adapter['categories_inf'],
             u'summary': adapter['summary_inf']
         })
         # return item to the next pipeline.
@@ -42,18 +43,27 @@ class AhaMangaInfoDataPipeline:
 
 #
 class AhaMangaInfoThumbnailPipeline(ImagesPipeline):
+    root_collection = 'aha_manga'
+
     def get_media_requests(self, item, info):
-        yield scrapy.Request(item['thumbnail_url'])
+        yield Request(item['thumbnail_url'])
 
     def item_completed(self, results, item, info):
+        adapter = ItemAdapter(item)
         image_paths = [x['path'] for ok, x in results if ok]
         if not image_paths:
-            raise DropItem("Item contains no images")
+            raise DropItem('Item contains no images')
         # - Save to storage.
+        manga_id = adapter['manga_id']
+        if manga_id is None:
+            raise DropItem('the manga_id is none')
         file_name = self.path_leaf(image_paths[1])
-        blob = storage_client.blob(f'{item['manga_id']}/{file_name}')
+        blob = storage_client.blob(f'{manga_id}/{file_name}')
         blob.upload_from_filename(image_paths[1])
-        # - TODO: save the path to firestore
+        # - Save the download url to firestore.
+        db_client.collection(self.root_collection).document(adapter['manga_id']).set({
+            u'thumbnail_url': blob.media_link
+        })
         return item
 
     def path_leaf(path):

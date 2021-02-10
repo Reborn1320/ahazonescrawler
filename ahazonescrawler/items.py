@@ -3,19 +3,17 @@
 # See documentation in:
 # https://docs.scrapy.org/en/latest/topics/items.html
 
-from dataclasses import dataclass
+from scrapy.item import Item, Field
 
-@dataclass
-class AhazonescrawlerItem:
+class AhazonescrawlerItem(Item):
     # define the fields for your item here like:
     # name = scrapy.Field()
     pass
 
-@dataclass
-class AhaMangaInfoItem:
-    manga_id: str
-    author_inf: str
-    categories_inf: str
-    summary_inf: str
-    thumbnail_url: str
-    preview_url: str
+class AhaMangaInfoItem(Item):
+    manga_id = Field()
+    author_inf = Field()
+    categories_inf = Field()
+    summary_inf = Field()
+    thumbnail_url = Field()
+    preview_url = Field()
