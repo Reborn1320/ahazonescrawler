@@ -9,8 +9,8 @@ class AhaMangaInfoSpider(Spider):
     custom_settings = {
         'ITEM_PIPELINES': {
             'ahazonescrawler.pipelines.AhaMangaInfoThumbnailPipeline': 300,
-            # 'ahazonescrawler.pipelines.AhaMangaInfoDataPipeline': 301,
-            # 'ahazonescrawler.pipelines.AhaMangaInfoCrawlerStatusPipeline': 302
+            'ahazonescrawler.pipelines.AhaMangaInfoDataPipeline': 301,
+            'ahazonescrawler.pipelines.AhaMangaInfoCrawlerStatusPipeline': 302
         },
         'IMAGES_STORE': '../temp/manga/'
     }
