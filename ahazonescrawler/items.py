@@ -11,6 +11,7 @@ class AhazonescrawlerItem(Item):
     pass
 
 class AhaMangaInfoItem(Item):
+    inst_id = Field()
     manga_id = Field()
     author_inf = Field()
     categories_inf = Field()

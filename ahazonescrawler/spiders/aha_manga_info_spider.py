@@ -9,28 +9,34 @@ class AhaMangaInfoSpider(Spider):
     custom_settings = {
         'ITEM_PIPELINES': {
             'ahazonescrawler.pipelines.AhaMangaInfoThumbnailPipeline': 300,
-            'ahazonescrawler.pipelines.AhaMangaInfoDataPipeline': 301,
+            # 'ahazonescrawler.pipelines.AhaMangaInfoDataPipeline': 301,
+            # 'ahazonescrawler.pipelines.AhaMangaInfoCrawlerStatusPipeline': 302
         },
+        'IMAGES_STORE': '../temp/manga/'
     }
     def start_requests(self):
         # Load crawling instructions.
         instructions = db_client.collection(self.root_collection).where(u'spider_name', u'==', self.name).where(u'crawling_status', u'==', u'new').stream()
         for inst in instructions:
-            yield Request(url=inst['source_url'], callback= self.parse_inst, cb_kwargs=dict(inst=inst))
+            inst_dict = inst.to_dict()
+            inst_dict['id'] = inst.id
+            yield Request(url=inst_dict['source_url'], callback= self.parse_inst, cb_kwargs=dict(inst=inst_dict))
+
     def parse_inst(self, response, inst):
         loader = ItemLoader(item=AhaMangaInfoItem(), response=response)
         loader.add_value('manga_id', inst['manga_id'])
-        self.load_item(loader, 'author_inf', inst['author_inst'])
-        self.load_item(loader, 'categories_inf', inst['categories_inst'])
-        self.load_item(loader, 'summary_inf', inst['summary_inst'])
-        self.load_item(loader, 'thumbnail_url', inst['thumbnail_inst'])
+        loader.add_value('inst_id', inst['id'])
+        self.add_inst(loader, 'author_inf', inst['author_inst'])
+        self.add_inst(loader, 'categories_inf', inst['categories_inst'])
+        self.add_inst(loader, 'summary_inf', inst['summary_inst'])
+        self.add_inst(loader, 'thumbnail_url', inst['thumbnail_inst'])
         return loader.load_item()
 
-    def load_item(self, loader, item_attr, inst):
+    def add_inst(self, loader, item_attr, inst):
         if inst is None:
             return
-        selector = inst['author_inst']['selector']
-        path = inst['author_inst']['path']
+        selector = inst['selector']
+        path = inst['path']
         if selector == 'xpath':
             loader.add_xpath(item_attr, path)
         elif selector == 'css':
