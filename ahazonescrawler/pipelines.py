@@ -70,13 +70,13 @@ class AhaMangaInfoThumbnailPipeline(ImagesPipeline):
             self.is_thumbnail = True
             yield Request(urljoin('http://', thumbnail_url))
         else:
-            logger.error('the thumbnail_url is none')
+            logger.warn('the thumbnail_url is none')
         preview_url = get_str(adapter['preview_url']) if 'preview_url' in adapter else None
         if preview_url:
             self.is_preview = True
             yield Request(urljoin('http://', preview_url))
         else:
-            logger.error('the preview_url is none')
+            logger.warn('the preview_url is none')
 
     def item_completed(self, results, item, info):
         adapter = ItemAdapter(item)
@@ -99,11 +99,13 @@ class AhaMangaInfoThumbnailPipeline(ImagesPipeline):
         if thumbnail:
             blob = storage_client.blob(f'manga/{manga_id}/{self.path_leaf(thumbnail)}')
             blob.upload_from_filename(self.store._get_filesystem_path(thumbnail))
-            doc['thumbnail_url'] = blob.media_link
+            blob.make_public()
+            doc['thumbnail_url'] = blob.public_url
         if preview:
             blob = storage_client.blob(f'manga/{manga_id}/{self.path_leaf(preview)}')
             blob.upload_from_filename(self.store._get_filesystem_path(preview))
-            doc['preview_url'] = blob.media_link
+            blob.make_public()
+            doc['preview_url'] = blob.public_url
         # - Save the download url to firestore.
         if doc:
             db_client.collection(self.root_collection).document(manga_id).set(doc, merge=True)
