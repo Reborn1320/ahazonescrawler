@@ -36,59 +36,80 @@ class AhazonescrawlerPipeline:
 class AhaMangaInfoDataPipeline:
     root_collection = 'aha_manga'
 
-    def open_spider(self, spider):
-        logger.info('Start inserting manga info data')
-
-    def close_spider(self, spider):
-        logger.info('Stop inserting manga info data')
-
     def process_item(self, item, spider):
         adapter = ItemAdapter(item)
         manga_id = get_str(adapter['manga_id'])
         if manga_id is None:
             raise DropItem('the manga_id is none')
         # save info to firestore.
-        author = get_str(adapter['author_inf'])
-        categories = get_list(adapter['categories_inf'])
-        summary = get_str(adapter['summary_inf'], delimiter=' ')
-        db_client.collection(self.root_collection).document(manga_id).set({
-            u'author': author,
-            u'categories': categories,
-            u'summary': summary
-        }, merge=True)
+        author = get_str(adapter['author_inf']) if 'author_inf' in adapter else None
+        categories = get_list(adapter['categories_inf']) if 'categories_inf' in adapter else None
+        summary = get_str(adapter['summary_inf'], delimiter=' ') if 'summary_inf' in adapter else None
+        doc = {}
+        if author:
+            doc['author'] = author
+        if categories:
+            doc['categories'] = categories
+        if summary:
+            doc['summary'] = summary
+        if doc:
+            db_client.collection(self.root_collection).document(manga_id).set(doc, merge=True)
         # return item to the next pipeline.
         return item
 
 #
 class AhaMangaInfoThumbnailPipeline(ImagesPipeline):
     root_collection = 'aha_manga'
+    is_thumbnail = False
+    is_preview = False
 
     def get_media_requests(self, item, info):
-        url = get_str(item['thumbnail_url'])
-        if url:
-            yield Request(urljoin('http://', url))
+        adapter = ItemAdapter(item)
+        thumbnail_url = get_str(adapter['thumbnail_url']) if 'thumbnail_url' in adapter else None
+        if thumbnail_url:
+            self.is_thumbnail = True
+            yield Request(urljoin('http://', thumbnail_url))
         else:
             logger.error('the thumbnail_url is none')
+        preview_url = get_str(adapter['preview_url']) if 'preview_url' in adapter else None
+        if preview_url:
+            self.is_preview = True
+            yield Request(urljoin('http://', preview_url))
+        else:
+            logger.error('the preview_url is none')
 
     def item_completed(self, results, item, info):
         adapter = ItemAdapter(item)
-        image_paths = [x['path'] for ok, x in results if ok]
-        if not image_paths:
-            raise DropItem('item contains no images')
-        # - Save to storage.
         manga_id = get_str(adapter['manga_id'])
         if manga_id is None:
             raise DropItem('the manga_id is none')
-        file_name = self.path_leaf(image_paths[1])
-        blob = storage_client.blob(f'{manga_id}/{file_name}')
-        blob.upload_from_filename(image_paths[1])
+
+        thumbnail = None
+        preview = None
+        if self.is_thumbnail:
+            ok, x = results[0]
+            if ok and x['path']:
+                thumbnail = x['path']
+        if self.is_preview:
+            ok, x = results[1] if len(results) == 2 else results[0]
+            if ok and x['path']:
+                preview = x['path']
+        # - Save to storage.
+        doc = {}
+        if thumbnail:
+            blob = storage_client.blob(f'manga/{manga_id}/{self.path_leaf(thumbnail)}')
+            blob.upload_from_filename(self.store._get_filesystem_path(thumbnail))
+            doc['thumbnail_url'] = blob.media_link
+        if preview:
+            blob = storage_client.blob(f'manga/{manga_id}/{self.path_leaf(preview)}')
+            blob.upload_from_filename(self.store._get_filesystem_path(preview))
+            doc['preview_url'] = blob.media_link
         # - Save the download url to firestore.
-        db_client.collection(self.root_collection).document(manga_id).set({
-            u'thumbnail_url': blob.media_link
-        }, merge=True)
+        if doc:
+            db_client.collection(self.root_collection).document(manga_id).set(doc, merge=True)
         return item
 
-    def path_leaf(path):
+    def path_leaf(self, path):
         head, tail = ntpath.split(path)
         return tail or ntpath.basename(head)
 
