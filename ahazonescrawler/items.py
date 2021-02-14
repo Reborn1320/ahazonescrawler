@@ -25,3 +25,4 @@ class AhaMangaChaptersItem(Item):
     lang_version = Field()
     cron_time = Field()
     chapters = Field()
+    success = Field()

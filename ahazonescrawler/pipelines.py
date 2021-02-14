@@ -133,13 +133,23 @@ class AhaMangaChapterDataPipeline:
 
     def process_item(self, item, spider):
         adapter = ItemAdapter(item)
+        adapter['success'] = True
         manga_id = get_str(adapter['manga_id'])
         lang_ver = get_str(adapter['lang_version'])
         chapters = adapter['chapters']
         if type(chapters) is not list:
-            raise DropItem('invalid [chapters] item')
+            logger.error('invalid [chapters] item')
+            adapter['success'] = False
+            return item
+        if lang_ver not in ('en', 'ja', 'vi'):
+            logger.warn(f'invalid chapter lang version.')
+            adapter['success'] = False
+            return item
+        if len(chapters) < 1:
+            logger.info(f'there is no new chapters of manga: {manga_id}')
+            return item
         chapters_ref = db_client.collection(self.root_collection).document(manga_id).collection(self.chapters_collection)
-
+        batch = db_client.batch()
         for chapter in chapters:
             chapter_id = chapter['chapter_id']
             chapter_url = chapter['chapter_url']
@@ -148,12 +158,12 @@ class AhaMangaChapterDataPipeline:
                 chapter_doc['en_version'] = chapter_url
             elif lang_ver == 'ja':
                 chapter_doc['ja_version'] = chapter_url
-            elif lang_ver == 'vi':
-                chapter_doc['vi_version'] = chapter_url
             else:
-                logger.warn(f'invalid chapter version.')
-                raise DropItem('the lang_version is invalid.')
-            chapters_ref.document(chapter_id).set(chapter_doc, merge=True)
+                chapter_doc['vi_version'] = chapter_url
+                
+            batch.set(chapters_ref.document(chapter_id), chapter_doc, merge=True)
+        batch.commit()
+        return item
 
 class AhaMangaChapterCrawlerStatusPipeline:
     root_collection = 'aha_crawler'
@@ -161,15 +171,22 @@ class AhaMangaChapterCrawlerStatusPipeline:
     def process_item(self, item, spider):
         adapter = ItemAdapter(item)
         chapters = adapter['chapters']
-        last_chapter = chapters[-1]['chapter_id']
 
         inst_id = get_str(adapter['inst_id'])
         cron_time = get_str(adapter['cron_time'])
-        now = datetime.datetime.now()
+
+        now = datetime.datetime.utcnow()
         cron = croniter.croniter(cron_time, now)
+        # - Will run in the next week
         next_time = cron.get_next(datetime.datetime)
 
-        db_client.collection(self.root_collection).document(inst_id).set({
-            u'next_time': next_time,
-            u'last_chapter': last_chapter
-        }, merge=True)
+        update = {}
+        if len(chapters) > 0:
+            last_chapter = max([c['chapter_id'] for c in chapters])
+            update['last_chapter'] = last_chapter
+        else:
+            # - Will run in the next day
+            next_time = now + datetime.timedelta(days=1)
+        update['next_time'] = next_time
+        update['last_success'] = adapter['success']
+        db_client.collection(self.root_collection).document(inst_id).set(update, merge=True)
