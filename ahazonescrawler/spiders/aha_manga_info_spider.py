@@ -12,7 +12,7 @@ class AhaMangaInfoSpider(Spider):
             'ahazonescrawler.pipelines.AhaMangaInfoDataPipeline': 301,
             'ahazonescrawler.pipelines.AhaMangaInfoCrawlerStatusPipeline': 302
         },
-        'IMAGES_STORE': '../temp/manga/'
+        'IMAGES_STORE': './temp/manga/'
     }
     def start_requests(self):
         # Load crawling instructions.
@@ -26,10 +26,16 @@ class AhaMangaInfoSpider(Spider):
         loader = ItemLoader(item=AhaMangaInfoItem(), response=response)
         loader.add_value('manga_id', inst['manga_id'])
         loader.add_value('inst_id', inst['id'])
-        self.add_inst(loader, 'author_inf', inst['author_inst'])
-        self.add_inst(loader, 'categories_inf', inst['categories_inst'])
-        self.add_inst(loader, 'summary_inf', inst['summary_inst'])
-        self.add_inst(loader, 'thumbnail_url', inst['thumbnail_inst'])
+        if 'author_inst' in inst:
+            self.add_inst(loader, 'author_inf', inst['author_inst'])
+        if 'categories_inst' in inst:
+            self.add_inst(loader, 'categories_inf', inst['categories_inst'])
+        if 'summary_inst' in inst:
+            self.add_inst(loader, 'summary_inf', inst['summary_inst'])
+        if 'thumbnail_inst' in inst:
+            self.add_inst(loader, 'thumbnail_url', inst['thumbnail_inst'])
+        if 'preview_inst' in inst:
+            self.add_inst(loader, 'preview_url', inst['preview_inst'])
         return loader.load_item()
 
     def add_inst(self, loader, item_attr, inst):

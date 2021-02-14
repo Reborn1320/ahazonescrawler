@@ -18,3 +18,11 @@ class AhaMangaInfoItem(Item):
     summary_inf = Field()
     thumbnail_url = Field()
     preview_url = Field()
+
+class AhaMangaChaptersItem(Item):
+    inst_id = Field()
+    manga_id = Field()
+    lang_version = Field()
+    cron_time = Field()
+    chapters = Field()
+    success = Field()
