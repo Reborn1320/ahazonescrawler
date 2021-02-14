@@ -65,8 +65,15 @@ class AhaMangaChapterSpider(Spider):
             self.logger.warn(f'unsupported selector {selector}')
     def get_num(self, num_in_str):
         if num_in_str is not None:
-            nums = [int(s) for s in num_in_str.split() if s.isdigit()]
+            nums = [float(s) for s in num_in_str.split() if self.isfloat(s)]
             if len(nums) == 1:
                 return nums[0]
         self.logger.error(f'cannot get chapter number from {num_in_str}')
         return None
+    
+    def isfloat(self, s):
+        try:
+            float(s)
+            return True
+        except ValueError:
+            return False

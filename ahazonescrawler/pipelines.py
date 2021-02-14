@@ -45,6 +45,8 @@ class AhaMangaInfoDataPipeline:
         author = get_str(adapter['author_inf']) if 'author_inf' in adapter else None
         categories = get_list(adapter['categories_inf']) if 'categories_inf' in adapter else None
         summary = get_str(adapter['summary_inf'], delimiter=' ') if 'summary_inf' in adapter else None
+        thumbnail = get_str(adapter['thumbnail_url']) if 'thumbnail_url' in adapter else None
+        preview = get_str(adapter['preview_url']) if 'preview_url' in adapter else None
         doc = {}
         if author:
             doc['author'] = author
@@ -52,6 +54,10 @@ class AhaMangaInfoDataPipeline:
             doc['categories'] = categories
         if summary:
             doc['summary'] = summary
+        if thumbnail:
+            doc['thumbnail_url'] = thumbnail
+        if preview:
+            doc['preview_url'] = preview
         if doc:
             db_client.collection(self.root_collection).document(manga_id).set(doc, merge=True)
         # return item to the next pipeline.
@@ -95,20 +101,17 @@ class AhaMangaInfoThumbnailPipeline(ImagesPipeline):
             if ok and x['path']:
                 preview = x['path']
         # - Save to storage.
-        doc = {}
         if thumbnail:
             blob = storage_client.blob(f'manga/{manga_id}/{self.path_leaf(thumbnail)}')
             blob.upload_from_filename(self.store._get_filesystem_path(thumbnail))
             blob.make_public()
-            doc['thumbnail_url'] = blob.public_url
+            adapter['thumbnail_url'] = blob.public_url
         if preview:
             blob = storage_client.blob(f'manga/{manga_id}/{self.path_leaf(preview)}')
             blob.upload_from_filename(self.store._get_filesystem_path(preview))
             blob.make_public()
-            doc['preview_url'] = blob.public_url
+            adapter['preview_url'] = blob.public_url
         # - Save the download url to firestore.
-        if doc:
-            db_client.collection(self.root_collection).document(manga_id).set(doc, merge=True)
         return item
 
     def path_leaf(self, path):
@@ -150,6 +153,7 @@ class AhaMangaChapterDataPipeline:
             return item
         chapters_ref = db_client.collection(self.root_collection).document(manga_id).collection(self.chapters_collection)
         batch = db_client.batch()
+        counter = 0
         for chapter in chapters:
             chapter_id = chapter['chapter_id']
             chapter_url = chapter['chapter_url']
@@ -161,8 +165,14 @@ class AhaMangaChapterDataPipeline:
             else:
                 chapter_doc['vi_version'] = chapter_url
                 
-            batch.set(chapters_ref.document(chapter_id), chapter_doc, merge=True)
-        batch.commit()
+            batch.set(chapters_ref.document(str(chapter_id)), chapter_doc, merge=True)
+            counter += 1
+
+            if counter == 500:
+                batch.commit()
+                counter = 0
+        if counter > 0:
+            batch.commit()
         return item
 
 class AhaMangaChapterCrawlerStatusPipeline:
