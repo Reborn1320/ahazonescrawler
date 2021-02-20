@@ -28,6 +28,16 @@ def get_list(value, delimiter=','):
         return value.split(delimiter)
     return value
 
+def get_last_chapter_key(manga_id, lang):
+    return f'{manga_id}_{lang}'
+
+def get_last_chapter_from_list(chapters):
+    if type(chapters) is not list:
+        return None
+    if len(chapters) > 0:
+        return max([c['chapter_id'] for c in chapters])
+    return None
+
 class AhazonescrawlerPipeline:
     def process_item(self, item, spider):
         return item
@@ -134,9 +144,17 @@ class AhaMangaChapterDataPipeline:
     root_collection = 'aha_manga'
     chapters_collection = 'chapters'
 
+    def __init__(self, stats):
+        self.stats = stats
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        return cls(crawler.stats)
+
     def process_item(self, item, spider):
         adapter = ItemAdapter(item)
         adapter['success'] = True
+        adapter['lastest_chapter'] = None
         manga_id = get_str(adapter['manga_id'])
         lang_ver = get_str(adapter['lang_version'])
         chapters = adapter['chapters']
@@ -151,6 +169,13 @@ class AhaMangaChapterDataPipeline:
         if len(chapters) < 1:
             logger.info(f'there is no new chapters of manga: {manga_id}')
             return item
+        last_update_chapter = self.stats.get_value(get_last_chapter_key(manga_id, lang_ver))
+        last_chapter_from_this = get_last_chapter_from_list(chapters)
+        if last_update_chapter and last_update_chapter >= last_chapter_from_this:
+            logger.info(f'the newest chapters are updated by others.')
+            adapter['lastest_chapter'] = last_update_chapter
+            return item
+        adapter['lastest_chapter'] = last_chapter_from_this
         chapters_ref = db_client.collection(self.root_collection).document(manga_id).collection(self.chapters_collection)
         batch = db_client.batch()
         counter = 0
@@ -178,9 +203,18 @@ class AhaMangaChapterDataPipeline:
 class AhaMangaChapterCrawlerStatusPipeline:
     root_collection = 'aha_crawler'
 
+    def __init__(self, stats):
+        self.stats = stats
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        return cls(crawler.stats)
+
     def process_item(self, item, spider):
         adapter = ItemAdapter(item)
-        chapters = adapter['chapters']
+        manga_id = get_str(adapter['manga_id'])
+        lang_ver = get_str(adapter['lang_version'])
+        lastest_chapter = adapter['lastest_chapter']
 
         inst_id = get_str(adapter['inst_id'])
         cron_time = get_str(adapter['cron_time'])
@@ -191,9 +225,10 @@ class AhaMangaChapterCrawlerStatusPipeline:
         next_time = cron.get_next(datetime.datetime)
 
         update = {}
-        if len(chapters) > 0:
-            last_chapter = max([c['chapter_id'] for c in chapters])
-            update['last_chapter'] = last_chapter
+        if lastest_chapter:
+            update['last_chapter'] = lastest_chapter
+            # - Update the last chapter of the manga of the source
+            self.stats.set_value(get_last_chapter_key(manga_id, lang_ver), lastest_chapter)
         else:
             # - Will run in the next day
             next_time = now + datetime.timedelta(days=1)
