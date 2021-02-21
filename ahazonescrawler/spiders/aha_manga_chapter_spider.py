@@ -40,7 +40,7 @@ class AhaMangaChapterSpider(Spider):
             if url and id > last_chapter:
                 item['chapters'].append({
                     u'chapter_id': id,
-                    u'chapter_url': url
+                    u'chapter_url': response.urljoin(url)
                 })
         return item
 
