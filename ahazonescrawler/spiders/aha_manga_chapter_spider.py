@@ -4,6 +4,7 @@ from scrapy.selector.unified import Selector
 from scrapy.http.response.html import HtmlResponse
 from ahazonescrawler.firebase.admin import db_client
 from ahazonescrawler.items import AhaMangaChaptersItem
+from ahazonescrawler.utilities import extract_chapter_num
 
 class AhaMangaChapterSpider(Spider):
     name = 'aha-manga-chapter-spider'
@@ -64,16 +65,8 @@ class AhaMangaChapterSpider(Spider):
         else:
             self.logger.warn(f'unsupported selector {selector}')
     def get_num(self, num_in_str):
-        if num_in_str is not None:
-            nums = [float(s) for s in num_in_str.split() if self.isfloat(s)]
-            if len(nums) == 1:
-                return nums[0]
-        self.logger.error(f'cannot get chapter number from {num_in_str}')
-        return None
-    
-    def isfloat(self, s):
-        try:
-            float(s)
-            return True
-        except ValueError:
-            return False
+        n = extract_chapter_num(num_in_str)
+        if n is None:
+            self.logger.error(f'cannot get chapter number from {num_in_str}')
+            return None
+        return n
