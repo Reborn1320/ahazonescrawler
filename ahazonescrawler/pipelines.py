@@ -196,7 +196,7 @@ class AhaMangaChapterCrawlerStatusPipeline:
             update['last_chapter'] = last_chapter
         else:
             # - Will run in the next day
-            next_time = now + datetime.timedelta(days=1)
+            next_time = now + datetime.timedelta(days=0.25)
         update['next_time'] = next_time
         update['last_success'] = adapter['success']
         db_client.collection(self.root_collection).document(inst_id).set(update, merge=True)
