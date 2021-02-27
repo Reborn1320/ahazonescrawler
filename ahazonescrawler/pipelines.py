@@ -19,9 +19,11 @@ from ahazonescrawler.firebase.admin import db_client, storage_client
 logger = logging.getLogger(__name__)
 
 def get_str(value, delimiter=''):
+    if value is None or value == '':
+        return value
     if type(value) is list:
         return delimiter.join(str(e) for e in value)
-    return value
+    return value.strip()
 
 def get_list(value, delimiter=','):
     if type(value) is str:
