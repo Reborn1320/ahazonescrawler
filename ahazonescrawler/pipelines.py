@@ -178,7 +178,7 @@ class AhaMangaChapterDataPipeline:
             adapter['lastest_chapter'] = last_update_chapter
             return item
         adapter['lastest_chapter'] = last_chapter_from_this
-        chapters_ref = db_client.collection(self.root_collection).document(manga_id).collection(self.chapters_collection)
+        chapters_ref = db_client.collection(self.root_collection).document(manga_id).collection(f'{lang_ver}_{self.chapters_collection}')
         batch = db_client.batch()
         counter = 0
         for chapter in chapters:
