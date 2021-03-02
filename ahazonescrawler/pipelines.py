@@ -159,6 +159,7 @@ class AhaMangaChapterDataPipeline:
         adapter['lastest_chapter'] = None
         manga_id = get_str(adapter['manga_id'])
         lang_ver = get_str(adapter['lang_version'])
+        priority = get_str(adapter['priority'])
         chapters = adapter['chapters']
         if type(chapters) is not list:
             logger.error('invalid [chapters] item')
@@ -185,13 +186,7 @@ class AhaMangaChapterDataPipeline:
             chapter_id = chapter['chapter_id']
             chapter_url = chapter['chapter_url']
             chapter_doc = {}
-            if lang_ver == 'en':
-                chapter_doc['en_version'] = chapter_url
-            elif lang_ver == 'ja':
-                chapter_doc['ja_version'] = chapter_url
-            else:
-                chapter_doc['vi_version'] = chapter_url
-                
+            chapter_doc[f'{priority}_url'] = chapter_url
             batch.set(chapters_ref.document(str(chapter_id)), chapter_doc, merge=True)
             counter += 1
 
