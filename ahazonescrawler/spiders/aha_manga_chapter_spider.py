@@ -31,6 +31,7 @@ class AhaMangaChapterSpider(Spider):
         item['manga_id'] = inst.get('manga_id', None)
         item['lang_version'] = inst.get('lang_version', None)
         item['cron_time'] = inst.get('cron_time', None)
+        item['priority'] = inst.get('priority', '1')
         item['chapters'] = list()
 
         last_chapter = inst.get('last_chapter', -1)
