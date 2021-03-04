@@ -24,7 +24,7 @@ class AhaMangaChaptersItem(Item):
     manga_id = Field()
     lang_version = Field()
     cron_time = Field()
-    priority = Field()
+    source_id = Field()
     chapters = Field()
     success = Field()
     lastest_chapter = Field()
