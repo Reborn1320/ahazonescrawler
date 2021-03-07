@@ -186,6 +186,7 @@ class AhaMangaChapterDataPipeline:
             chapter_id = chapter['chapter_id']
             chapter_url = chapter['chapter_url']
             chapter_doc = {}
+            chapter_doc['chapter_no'] = chapter_id
             chapter_doc[f'{source_id}_url'] = chapter_url
             batch.set(chapters_ref.document(str(chapter_id)), chapter_doc, merge=True)
             counter += 1
