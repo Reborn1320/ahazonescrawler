@@ -35,6 +35,8 @@ class AhaMangaChapterSpider(Spider):
         item['chapters'] = list()
 
         last_chapter = inst.get('last_chapter', -1)
+        last_chapter_id = last_chapter
+        last_chapter_url = None
         link_list = self.get_element(response, inst.get('list_inst', None), False)
         for link in link_list:
             url = self.get_element(link, inst.get('url_inst', None))
@@ -44,7 +46,19 @@ class AhaMangaChapterSpider(Spider):
                     u'chapter_id': id,
                     u'chapter_url': response.urljoin(url)
                 })
-        return item
+                if id > last_chapter_id:
+                    last_chapter_id = id
+                    last_chapter_url = url
+        if last_chapter_url:
+            yield Request(url=last_chapter_url, callback= self.validate_last, cb_kwargs=dict(item=item))
+
+    def validate_last(self, response, item):
+        num = self.count_images(response)
+        if num > 3:
+            return item
+
+    def count_images(self, response):
+        return len(response.xpath('//img/@src'))
 
     def get_element(self, parent, inst, text = True):
         if inst is None:
