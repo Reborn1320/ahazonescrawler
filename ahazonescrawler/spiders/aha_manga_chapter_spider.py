@@ -54,7 +54,7 @@ class AhaMangaChapterSpider(Spider):
 
     def validate_last(self, response, item):
         num = self.count_images(response)
-        if num > 3:
+        if num > 7:
             return item
 
     def count_images(self, response):
