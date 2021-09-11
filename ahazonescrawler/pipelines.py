@@ -191,6 +191,13 @@ class AhaMangaChapterDataPipeline:
             batch.set(chapters_ref.document(str(chapter_id)), chapter_doc, merge=True)
             counter += 1
 
+            if (chapter_id == last_chapter_from_this):
+                last_chapter = {}
+                last_chapter[f'{lang_ver}_last_chapter_id'] = chapter_id
+                last_chapter[f'{lang_ver}_last_chapter_url'] = chapter_url
+                batch.set(db_client.collection(self.root_collection).document(manga_id), last_chapter, merge=True)
+                counter += 1
+
             if counter == 500:
                 batch.commit()
                 counter = 0
